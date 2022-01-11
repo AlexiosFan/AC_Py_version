@@ -39,7 +39,7 @@ df["CUSTOMER"] = df["CUSTOMER"].map(remove_quote, 'ignore')
 
 # turning high/low margin products to pertage and comparable
 for letter in ["A", "B", "C", "D", "E"]:
-    df["Percentage_of_Product_"+letter] = df["COSTS_PRODUCT_"+letter]/(df["MATERIAL_COST"]+df["SERVICE_COST"])
+    df["Percentage_of_Product_"+letter] = df["COSTS_PRODUCT_"+letter]/(df["OFFER_PRICE"])
     df = df.drop(columns=["COSTS_PRODUCT_"+letter])
 
 # one-hot encoding for nominals
@@ -50,7 +50,7 @@ df = df.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1
 Y = df["OFFER_STATUS"].values
 X = df.drop("OFFER_STATUS", 1).values
 
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=0)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=2)
 
 # the scaling matter, for good habits
 sc = StandardScaler()
@@ -58,7 +58,7 @@ X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training
-classifier = RandomForestClassifier(n_estimators=1000, random_state=0)
+classifier = RandomForestClassifier(n_estimators=20, random_state=0)
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
