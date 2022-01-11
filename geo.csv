@@ -1,0 +1,47 @@
+COUNTRY,SALES_OFFICE,SALES_BRANCH,SALES_LOCATION
+CH,Luzern,Branch Central,Luzern Central
+CH,Zürich,Branch East,Zürich East
+CH,Basel,Branch Central,Basel Central
+CH,Geneva,Branch West,Geneva West
+CH,Lausanne,Branch West,Lausanne West
+CH,Sion,Branch West,Sion West
+CH,St. Gallen,Branch East,St. Gallen East
+CH,St. Blaise,Branch West,St. Blaise West
+CH,Steinhausen,Branch Central,Steinhausen Central
+CH,Bern,Branch Central,Bern Central
+CH,Lausanne,Branch East,Lausanne East
+CH,Granges-Paccot,Branch West,Granges-Paccot West
+CH,Ticino,Branch Central,Ticino Central
+CH,Lausanne,EPS CH,Lausanne EPS
+CH,Zürich,EPS CH,Zürich EPS
+CH,Bern,EPS CH,Bern EPS
+CH,,, 
+CH,Steinhausen,Branch East,Steinhausen East
+FR,Velizy,Grand Paris,Velizy Grand Paris
+FR,Pau,Sud Ouest,Pau Sud Ouest
+FR,Lille,Nord FR,Lille Nord FR
+FR,Brest,Ouest,Brest Ouest
+FR,BesanÃ§on,Centre-Est,BesanÃ§on Centre-Est
+FR,Metz,Grand Est,Metz Grand Est
+FR,Clermont,Centre-Est,Clermont Centre-Est
+FR,Bezons,Grand Paris,Bezons Grand Paris
+FR,Toulouse,Sud Ouest,Toulouse Sud Ouest
+FR,Nice,Sud-Est,Nice Sud-Est
+FR,Nantes,Ouest,Nantes Ouest
+FR,Aix,Sud-Est,Aix Sud-Est
+FR,Bordeaux,Sud Ouest,Bordeaux Sud Ouest
+FR,Rouen,Nord FR,Rouen Nord FR
+FR,Grenoble,Centre-Est,Grenoble Centre-Est
+FR,Tours,Ouest,Tours Ouest
+FR,Strasbourg,Grand Est,Strasbourg Grand Est
+FR,Dijon,Centre-Est,Dijon Centre-Est
+FR,Export,Grand Paris,Export Grand Paris
+FR,Lyon,Centre-Est,Lyon Centre-Est
+FR,Vertical Market,Enterprise Business France,Vertical Market Enterprise Business France
+FR,Montpellier,Sud Ouest,Montpellier Sud Ouest
+FR,Poitiers,Sud Ouest,Poitiers Sud Ouest
+FR,Limoges,Sud Ouest,Limoges Sud Ouest
+FR,Others Functions,Enterprise Business France,Others Functions Enterprise Business France
+FR,Monaco,Sud-Est,Monaco Sud-Est
+FR,NA,Grand Paris,"NA Grand Paris"
+FR,Velizy,SI,Velizy SI
