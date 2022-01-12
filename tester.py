@@ -55,20 +55,17 @@ for letter in ["A", "B", "C", "D", "E"]:
 # one-hot encoding for nominals
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE", "PRICE_LIST", "SALES_LOCATION"])
 
-train_set = df[df["OFFER_STATUS"].notna()]
-test_set_init = df[df["OFFER_STATUS"].isna()]
 
 # TODO: a couple of variables deleted in the current model, to be handled or deleted
-train_set = train_set.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1).drop("TEST_SET_ID", 1)
-test_set = test_set_init.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1).drop("TEST_SET_ID", 1)
+df = df.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1).drop("TEST_SET_ID", 1)
 
+df = df[df["OFFER_STATUS"].notna()]
+
+Y = df["OFFER_STATUS"]
+X = df.drop("OFFER_STATUS", 1)
 
 # dividing the outcomes and variables
-Y_train = train_set["OFFER_STATUS"].values
-X_train = train_set.drop("OFFER_STATUS", 1).values
-
-Y_test = test_set["OFFER_STATUS"].values
-X_test = test_set.drop("OFFER_STATUS", 1).values
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=0)
 
 # the scaling matter, for good habits
 sc = StandardScaler()
@@ -76,12 +73,13 @@ X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
-classifier = RandomForestClassifier(n_estimators=1000, random_state=0, criterion="entropy", max_features="sqrt")
+classifier = RandomForestClassifier(n_estimators=100, random_state=0, criterion="entropy", max_features="sqrt")
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
-# output the results
-result = pd.DataFrame([test_set_init["TEST_SET_ID"].to_numpy(), np.split(Y_pred, len(Y_pred))], index=["id", "prediction"]).T
-result["prediction"] = result["prediction"].map(np.sum)
-result = result.astype(int)
-result.to_csv("prediction_savvy_sea_lion_1.csv", index=False)
+# test part
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+
+print(confusion_matrix(Y_test, Y_pred))
+print(classification_report(Y_test, Y_pred))
+print(accuracy_score(Y_test, Y_pred))
