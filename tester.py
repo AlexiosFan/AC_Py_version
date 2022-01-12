@@ -17,6 +17,8 @@ transactions = pd.read_csv("transactions.csv")
 customers = pd.read_csv("customers.csv")
 geo = pd.read_csv("geo.csv")
 
+transactions.merge(geo, how="left")
+
 # data preparation for OFFER_STATUS
 transactions["OFFER_STATUS"] = transactions["OFFER_STATUS"].replace(["LOST", "Lost", "LOsT", "Lose"], 0.)
 transactions["OFFER_STATUS"] = transactions["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.)
@@ -29,14 +31,7 @@ transactions["SO_CREATED_DATE"] = pd.to_datetime(transactions["SO_CREATED_DATE"]
 transactions["SO_CREATED_DATE"] = pd.to_datetime(transactions["SO_CREATED_DATE"], errors='ignore')
 
 # finding valid data for the df
-df = transactions.drop(columns=["MO_ID", "SO_ID"])
-
-# dealing with end customers
-df["END_CUSTOMER"] = df["END_CUSTOMER"].fillna(-1).replace({"No": 0, "Yes": 1}).astype(int)
-
-# dealing with isic
-df["ISIC"] = df["ISIC"].fillna(0)
-
+df = transactions.drop(columns=["MO_ID", "SO_ID", "END_CUSTOMER", "ISIC"])
 
 # converting customer ids to nums
 def remove_quote(entry):
@@ -48,9 +43,11 @@ df["CUSTOMER"] = df["CUSTOMER"].map(remove_quote, 'ignore')
 # TODO: join and groupby country dealing with the customer ids
 
 # turning high/low margin products to pertage and comparable
+"""
 for letter in ["A", "B", "C", "D", "E"]:
     df["Percentage_of_Product_" + letter] = df["COSTS_PRODUCT_" + letter] / (df["OFFER_PRICE"])
     df = df.drop(columns=["COSTS_PRODUCT_" + letter])
+"""
 
 # one-hot encoding for nominals
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE", "PRICE_LIST", "SALES_LOCATION"])
@@ -65,7 +62,7 @@ Y = df["OFFER_STATUS"]
 X = df.drop("OFFER_STATUS", 1)
 
 # dividing the outcomes and variables
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=0)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2, random_state=0)
 
 # the scaling matter, for good habits
 sc = StandardScaler()
