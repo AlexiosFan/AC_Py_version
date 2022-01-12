@@ -29,7 +29,7 @@ transactions["SO_CREATED_DATE"] = pd.to_datetime(transactions["SO_CREATED_DATE"]
 transactions["SO_CREATED_DATE"] = pd.to_datetime(transactions["SO_CREATED_DATE"], errors='ignore')
 
 # finding valid data for the df
-df = transactions.drop(columns=["MO_ID", "SO_ID", "TEST_SET_ID"])
+df = transactions.drop(columns=["MO_ID", "SO_ID"])
 
 # dealing with end customers
 df["END_CUSTOMER"] = df["END_CUSTOMER"].fillna(-1).replace({"No": 0, "Yes": 1}).astype(int)
@@ -59,8 +59,8 @@ train_set = df[df["OFFER_STATUS"].notna()]
 test_set_init = df[df["OFFER_STATUS"].isna()]
 
 # TODO: a couple of variables deleted in the current model, to be handled or deleted
-train_set = train_set.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1)
-test_set = test_set_init.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1)
+train_set = train_set.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1).drop("TEST_SET_ID", 1)
+test_set = test_set_init.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1).drop("TEST_SET_ID", 1)
 
 
 # dividing the outcomes and variables
@@ -81,6 +81,7 @@ classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
 # output the results
-result = pd.DataFrame([test_set_init["CUSTOMER"].to_numpy(), np.split(Y_pred, len(Y_pred))], index=["id", "prediction"]).T
-result["prediction"] = result["prediction"].map(np.sum).astype(int)
-result.to_csv("prediction_savvy_sea_lion_1.csv")
+result = pd.DataFrame([test_set_init["TEST_SET_ID"].to_numpy(), np.split(Y_pred, len(Y_pred))], index=["id", "prediction"]).T
+result["prediction"] = result["prediction"].map(np.sum)
+result = result.astype(int)
+result.to_csv("prediction_savvy_sea_lion_1.csv", index=False)
