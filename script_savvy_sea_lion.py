@@ -43,7 +43,7 @@ def remove_quote(entry):
 
 df["CUSTOMER"] = df["CUSTOMER"].map(remove_quote, 'ignore')
 
-# TODO : join and groupby country dealing with the customer ids
+# TODO: join and groupby country dealing with the customer ids
 
 # turning high/low margin products to pertage and comparable
 for letter in ["A", "B", "C", "D", "E"]:
@@ -52,6 +52,8 @@ for letter in ["A", "B", "C", "D", "E"]:
 
 # one-hot encoding for nominals
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE", "PRICE_LIST", "SALES_LOCATION"])
+
+# TODO: a couple of variables deleted in the current model, to be handled or deleted
 df = df.drop("CUSTOMER", 1).drop("MO_CREATED_DATE", 1).drop("SO_CREATED_DATE", 1).drop("OFFER_TYPE", 1)
 
 # dividing the outcomes and variables
@@ -65,7 +67,7 @@ sc = StandardScaler()
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
-# training
+# training and fit the best tree in the model
 classifier = RandomForestClassifier(n_estimators=1000, random_state=0, criterion="entropy", max_features="sqrt")
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
