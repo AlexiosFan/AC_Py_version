@@ -51,6 +51,7 @@ df["CUSTOMER"] = df["CUSTOMER"].map(remove_NV).dropna().astype(int)
 customers = customers.dropna()
 customers["REV_CURRENT_YEAR"] = customers["REV_CURRENT_YEAR"].map(remove_quote).astype(float)
 
+# left join a second list
 df = df.merge(customers, how="left", on=["CUSTOMER", "COUNTRY"])
 df = df[df["CUSTOMER"].notna()]
 df = df[df["CREATION_YEAR"].notna()]
@@ -92,7 +93,7 @@ X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
-classifier = RandomForestClassifier(n_estimators=100, random_state=0, criterion="entropy", max_features="sqrt")
+classifier = RandomForestClassifier(n_estimators=30, random_state=0, criterion="entropy", max_features="sqrt")
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
