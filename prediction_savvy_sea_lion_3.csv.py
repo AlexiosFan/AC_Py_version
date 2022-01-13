@@ -96,17 +96,21 @@ for letter in ["A", "B", "C", "D", "E"]:
 
 # one-hot encoding for nominal
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE", "COUNTRY","SALES_BRANCH"])
-
 # TODO: a couple of variables deleted in the current model, to be handled or deleted
-df = df.drop(columns=["CUSTOMER", "TEST_SET_ID"])
+df = df.drop(columns=["CUSTOMER"])
 
-df = df[df["OFFER_STATUS"].notna()]
+train_set = df[df["OFFER_STATUS"].notna()]
+test_set_init = df[df["OFFER_STATUS"].isna()]
 
-Y = df["OFFER_STATUS"]
-X = df.drop("OFFER_STATUS", 1)
+train_set = train_set.drop("TEST_SET_ID", 1)
+test_set = test_set_init.drop("TEST_SET_ID", 1)
 
 # dividing the outcomes and variables
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=0)
+Y_train = train_set["OFFER_STATUS"].values
+X_train = train_set.drop("OFFER_STATUS", 1).values
+
+Y_test = test_set["OFFER_STATUS"].values
+X_test = test_set.drop("OFFER_STATUS", 1).values
 
 # the scaling matter, for good habits
 sc = StandardScaler()
@@ -115,13 +119,11 @@ X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
 classifier = RandomForestClassifier(n_estimators=100, class_weight="balanced_subsample")
-# classifier = VotingClassifier()
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
-# test part
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
-
-print(confusion_matrix(Y_test, Y_pred))
-print(classification_report(Y_test, Y_pred))
-print(accuracy_score(Y_test, Y_pred))
+# output the results
+result = pd.DataFrame([test_set_init["TEST_SET_ID"].to_numpy(), np.split(Y_pred, len(Y_pred))], index=["id", "prediction"]).T
+result["prediction"] = result["prediction"].map(np.sum)
+result = result.astype(int)
+result.to_csv("prediction_savvy_sea_lion_3.csv", index=False)
