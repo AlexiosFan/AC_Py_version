@@ -22,9 +22,6 @@ geo = pd.read_csv("geo.csv")
 df = transactions.merge(geo, how="left")
 
 
-# The data type of attribute "CUSTOMER" in data transactions is String
-# We need to firstly convert the data type into int
-
 # Converting string to nums
 def remove_quote(entry):
     return entry[1:-1]
@@ -37,13 +34,13 @@ def remove_NV(entry):
         return float(entry)
 
 
-df["CUSTOMER"] = df["CUSTOMER"].map(remove_quote, 'ignore')
-df["CUSTOMER"] = df["CUSTOMER"].map(remove_NV).dropna().astype(int)
-customers = customers.dropna()
+# The data type of attribute "CUSTOMER" in data transactions is String
+# We need to firstly convert the data type into int
+df["CUSTOMER"] = df["CUSTOMER"].map(remove_quote, 'ignore').map(remove_NV).astype(int, errors="ignore")
 
 # The data type of "REV_CURRENT_YEAR" is string
 # We need to convert the data type into float
-customers["REV_CURRENT_YEAR"] = customers["REV_CURRENT_YEAR"].map(remove_quote).astype(float)
+customers["REV_CURRENT_YEAR"] = customers["REV_CURRENT_YEAR"].map(remove_quote).astype(float, errors="ignore")
 
 # The format of attribute "COUNTRY" is different in data customers and transactions
 # We need to firstly convert them to the same format
@@ -56,15 +53,15 @@ df = df.merge(customers, how="left", on=["CUSTOMER", "COUNTRY"])
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["LOST", "Lost", "LOsT", "Lose"], 0.)
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.)
 
-df = df[df["CUSTOMER"].notna()]
-df["ISIC"] = df["ISIC"].fillna(df["ISIC"].mean())
+# df = df[df["CUSTOMER"].notna()]
+df["ISIC"] = df["ISIC"].ffill().bfill()
 
 # Dealing with the dates
 df["CREATION_YEAR"] = pd.to_datetime(df["CREATION_YEAR"]).dt.year
 df["MO_CREATED_DATE"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.month
 df["SO_CREATED_DATE"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
 
-df["CREATION_YEAR"] = df["CREATION_YEAR"].fillna(df["CREATION_YEAR"].mean())
+df["CREATION_YEAR"] = df["CREATION_YEAR"].ffill().bfill()
 
 # Uniting currency with cny
 df["CURRENCY"] = df["CURRENCY"].map({"Chinese Yuan": 1, "Euro": 7.25, "US Dollar": 6.36, "Pound Sterling": 8.72, 0: 0})
@@ -75,6 +72,7 @@ df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
 
+# Better to use unknown
 df["COUNTRY"] = df["COUNTRY"].fillna("UNKNOWN")
 df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
 
