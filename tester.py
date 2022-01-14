@@ -123,9 +123,10 @@ classifier = RandomForestClassifier(n_estimators=100, class_weight="balanced_sub
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
-# test part
-from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score,balanced_accuracy_score
 
 print(confusion_matrix(Y_test, Y_pred))
 print(classification_report(Y_test, Y_pred))
-print(accuracy_score(Y_test, Y_pred))
+print(balanced_accuracy_score(Y_test, Y_pred))
+print(precision_score(Y_test, Y_pred))
+print(recall_score(Y_test, Y_pred))
