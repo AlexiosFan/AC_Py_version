@@ -6,11 +6,17 @@ with regards and thanks to the tutorial of usage of sklearning package posts
 # Loading packages and data
 import pandas as pd
 import numpy as np
+from sklearn.dummy import DummyClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier, ExtraTreesClassifier, \
+    GradientBoostingClassifier, StackingClassifier, HistGradientBoostingClassifier, VotingClassifier
 from sklearn.model_selection import train_test_split
 
 # Set a fixed random seed to make the work reproducible
+from sklearn.svm import SVC, LinearSVC
+
 np.random.seed(2022)
 
 transactions = pd.read_csv("transactions.csv")
@@ -53,7 +59,8 @@ df = df.merge(customers, how="left", on=["CUSTOMER", "COUNTRY"])
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["LOST", "Lost", "LOsT", "Lose"], 0.)
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.)
 
-df = df[df["CUSTOMER"].notna()]  # using this line will make the result set wrong
+# df = df[df["CUSTOMER"].notna()]  # using this line will make the result set wrong
+
 df["ISIC"] = df["ISIC"].ffill().bfill()
 
 # Dealing with the dates
@@ -95,11 +102,12 @@ for letter in ["A", "B", "C", "D", "E"]:
     df = df.drop(columns=["COSTS_PRODUCT_" + letter])
 
 # One-hot encoding for nominal
-df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE", "COUNTRY",
+df = pd.get_dummies(df, columns=["SALES_LOCATION", "TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE",
+                                 "COUNTRY",
                                  "SALES_BRANCH"])
 
 # Drop useless variables
-df = df.drop(columns=["MO_ID", "SO_ID", "SALES_LOCATION",
+df = df.drop(columns=["MO_ID", "SO_ID",
                       "SALES_OFFICE", "CURRENCY", "CUSTOMER", "TEST_SET_ID"])
 
 # Modeling the data
@@ -116,12 +124,19 @@ X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
-classifier = RandomForestClassifier(n_estimators=100, class_weight="balanced_subsample")
-# classifier = VotingClassifier()
+# classifier = RandomForestClassifier(n_estimators=100, class_weight={0: 4, 1: 1})
+# classifier = ExtraTreesClassifier(n_estimators=100, class_weight={0: 4, 1: 1})
+estimators = [('rf', RandomForestClassifier(n_estimators=100, class_weight={0: 4, 1: 1})),
+              ('et', ExtraTreesClassifier(n_estimators=100))]
+# classifier = StackingClassifier(
+#     estimators=estimators, final_estimator=LogisticRegression()
+# )
+classifier = VotingClassifier(estimators=estimators)
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score,balanced_accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, \
+    balanced_accuracy_score
 
 print(confusion_matrix(Y_test, Y_pred))
 print(classification_report(Y_test, Y_pred))
