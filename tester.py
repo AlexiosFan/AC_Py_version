@@ -126,11 +126,11 @@ gnb = GaussianNB()
 hist = HistGradientBoostingClassifier()
 grad = GradientBoostingClassifier()
 voting = VotingClassifier(estimators=[('rf', rf), ('lr', logit), ('gnb', gnb), ('hist', hist)], voting='soft')
-classifier = logit
+classifier =voting
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score,balanced_accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, balanced_accuracy_score
 
 print(confusion_matrix(Y_test, Y_pred))
 print(classification_report(Y_test, Y_pred))
