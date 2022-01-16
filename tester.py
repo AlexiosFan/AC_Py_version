@@ -8,12 +8,12 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, \
-    StackingClassifier, HistGradientBoostingClassifier
+    StackingClassifier, HistGradientBoostingClassifier, RandomForestRegressor
 from sklearn.svm import SVC
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegression
 from sklearn.naive_bayes import GaussianNB
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_validate
 
 # Set a fixed random seed to make the work reproducible
 np.random.seed(2022)
@@ -103,11 +103,12 @@ for letter in ["A", "B", "C", "D", "E"]:
     df = df.drop(columns=["COSTS_PRODUCT_" + letter])
 
 # One-hot encoding for nominal
-df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE", "COUNTRY",
-                                 "SALES_BRANCH", "SALES_LOCATION", "SALES_OFFICE"])
+df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE",
+                                 "SALES_BRANCH", "PRICE_LIST", "SALES_OFFICE", "COUNTRY", "OWNERSHIP", "OFFER_TYPE"])
 
 # Drop useless variables
-df = df.drop(columns=["MO_ID", "SO_ID", "CURRENCY", "CUSTOMER", "TEST_SET_ID"])
+df = df.drop(columns=["MO_ID", "SO_ID", "CURRENCY", "CUSTOMER", "TEST_SET_ID",
+                      "SALES_LOCATION"])
 
 # Modeling the data
 
@@ -123,21 +124,27 @@ X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
-rf = RandomForestClassifier(n_estimators=100, class_weight={1: 1, 0: 4})
-logit = LogisticRegression(max_iter=200, class_weight={1: 1, 0: 4}, solver='saga')
+rf = RandomForestClassifier(n_estimators=100, class_weight={1: 1, 0: 4}, min_samples_split=0.008, min_samples_leaf=0.009)
+logit = LogisticRegression(max_iter=300, class_weight={1: 1, 0: 4}, solver="saga")
 gnb = GaussianNB()
 hist = HistGradientBoostingClassifier()
 grad = GradientBoostingClassifier()
 voting = VotingClassifier(estimators=[('rf', rf), ('lr', logit), ('gnb', gnb), ('hist', hist)], voting='soft')
-classifier = voting
+
+classifier = rf
 classifier.fit(X_train, Y_train)
+
+# cross validation
+#cv_results = cross_validate(classifier, X, Y, cv=10, return_train_score=True)
+#print(cv_results['test_score'])
+
 Y_pred = classifier.predict(X_test)
 
 from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, \
     balanced_accuracy_score
 
-print(confusion_matrix(Y_test, Y_pred))
-print(classification_report(Y_test, Y_pred))
+# print(confusion_matrix(Y_test, Y_pred))
+# print(classification_report(Y_test, Y_pred))
 
 balance = balanced_accuracy_score(Y_test, Y_pred)
 recall = recall_score(Y_test, Y_pred)
