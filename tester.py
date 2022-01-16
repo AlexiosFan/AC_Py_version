@@ -7,7 +7,7 @@ with regards and thanks to the tutorial of usage of sklearning package posts
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier,\
+from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, \
     StackingClassifier, HistGradientBoostingClassifier
 from sklearn.svm import SVC
 from sklearn.pipeline import make_pipeline
@@ -18,6 +18,32 @@ from sklearn.model_selection import train_test_split
 # Set a fixed random seed to make the work reproducible
 np.random.seed(2022)
 
+# mapping functions
+# Converting string to nums
+def remove_quote(entry):
+    return entry[1:-1]
+
+
+# removing nv from the datasets
+def remove_NV(entry):
+    if entry in ['#NV', 'NA', np.nan]:
+        return np.nan
+    else:
+        return float(entry)
+
+
+#
+# Process the end_customers
+def map_end_customer(entry):
+    if entry in ["No", np.nan]:
+        return 0
+    elif entry in ["Yes"]:
+        return 1
+    else:
+        return 1
+
+
+# read files
 transactions = pd.read_csv("transactions.csv")
 customers = pd.read_csv("customers.csv")
 geo = pd.read_csv("geo.csv")
@@ -25,19 +51,6 @@ geo = pd.read_csv("geo.csv")
 # Join transactions with geo, customers
 # We use the left outer join to ensure there is no data loss in transactions
 df = transactions.merge(geo, how="left")
-
-
-# Converting string to nums
-def remove_quote(entry):
-    return entry[1:-1]
-
-
-def remove_NV(entry):
-    if entry in ['#NV', 'NA', np.nan]:
-        return np.nan
-    else:
-        return float(entry)
-
 
 # The data type of attribute "CUSTOMER" in data transactions is String
 # We need to firstly convert the data type into int
@@ -58,11 +71,12 @@ df = df.merge(customers, how="left", on=["CUSTOMER", "COUNTRY"])
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["LOST", "Lost", "LOsT", "Lose"], 0.)
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.)
 
-#df = df[df["CUSTOMER"].notna()]  # using this line will make the result set wrong
+# df = df[df["CUSTOMER"].notna()]  # using this line will make the result set wrong
 df["ISIC"] = df["ISIC"].ffill().bfill()
 
 # Dealing with the dates
 df["CREATION_YEAR"] = pd.to_datetime(df["CREATION_YEAR"]).dt.year
+# TODO: DATE MATTER
 df["MO_CREATED_DATE"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.month
 df["SO_CREATED_DATE"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
 
@@ -80,17 +94,6 @@ df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
 # Better to use unknown
 df["COUNTRY"] = df["COUNTRY"].fillna("UNKNOWN")
 df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
-
-
-# Process the end_customers
-def map_end_customer(entry):
-    if entry in ["No", np.nan]:
-        return 0
-    elif entry in ["Yes"]:
-        return 1
-    else:
-        return 1
-
 
 df["END_CUSTOMER"] = df["END_CUSTOMER"].map(map_end_customer)
 
@@ -130,7 +133,8 @@ classifier = voting
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, balanced_accuracy_score
+from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, \
+    balanced_accuracy_score
 
 print(confusion_matrix(Y_test, Y_pred))
 print(classification_report(Y_test, Y_pred))
@@ -138,3 +142,7 @@ print(classification_report(Y_test, Y_pred))
 balance = balanced_accuracy_score(Y_test, Y_pred)
 recall = recall_score(Y_test, Y_pred)
 specificity = 2 * balance - recall
+
+print(balance)
+print(recall)
+print(specificity)
