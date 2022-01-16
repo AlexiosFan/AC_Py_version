@@ -7,12 +7,7 @@ with regards and thanks to the tutorial of usage of sklearning package posts
 import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier,\
-    StackingClassifier, HistGradientBoostingClassifier
-from sklearn.svm import SVC
-from sklearn.pipeline import make_pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import GaussianNB
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 
 # Set a fixed random seed to make the work reproducible
@@ -104,36 +99,35 @@ df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSH
                                  "SALES_BRANCH", "SALES_LOCATION", "SALES_OFFICE"])
 
 # Drop useless variables
-df = df.drop(columns=["MO_ID", "SO_ID", "CURRENCY", "CUSTOMER", "TEST_SET_ID"])
+df = df.drop(columns=["MO_ID", "SO_ID", "CURRENCY", "CUSTOMER"])
 
 # Modeling the data
 
-# dividing the outcomes and variables
-df = df[df["OFFER_STATUS"].notna()]
-Y = df["OFFER_STATUS"]
-X = df.drop(columns="OFFER_STATUS")
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=0)
+# separate the training set and the test set
+train_set = df[df["OFFER_STATUS"].notna()].drop(columns="TEST_SET_ID")
+test_set_init = df[df["OFFER_STATUS"].isna()]  # used to generate the outcome
 
-# the scaling matter, for good habits
+test_set = test_set_init.drop(columns="TEST_SET_ID")
+
+# Dividing the variables and outcomes
+Y_train = train_set["OFFER_STATUS"].values
+X_train = train_set.drop(columns="OFFER_STATUS").values
+
+X_test = test_set.drop(columns="OFFER_STATUS").values
+
+# The scaling matter, for good habits
 sc = StandardScaler()
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
-# training and fit the best tree in the model
-rf = RandomForestClassifier(n_estimators=100, class_weight={1: 1, 0: 4})
-logit = LogisticRegression(max_iter=200, class_weight={1: 1, 0: 4}, solver='saga')
-gnb = GaussianNB()
-hist = HistGradientBoostingClassifier()
-grad = GradientBoostingClassifier()
-voting = VotingClassifier(estimators=[('rf', rf), ('lr', logit), ('gnb', gnb), ('hist', hist)], voting='soft')
-classifier = logit
+# Training and fit the best tree in the model
+classifier = RandomForestClassifier(n_estimators=100, class_weight={1: 4, 0: 1})
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score,balanced_accuracy_score
-
-print(confusion_matrix(Y_test, Y_pred))
-print(classification_report(Y_test, Y_pred))
-print(balanced_accuracy_score(Y_test, Y_pred))
-print(precision_score(Y_test, Y_pred))
-print(recall_score(Y_test, Y_pred))
+# Output the results
+result = pd.DataFrame([test_set_init["TEST_SET_ID"].to_numpy(), np.split(Y_pred, len(Y_pred))],
+                      index=["id", "prediction"]).T
+result["prediction"] = result["prediction"].map(np.sum)
+result = result.astype(int)
+result.to_csv("prediction_savvy_sea_lion_5.csv", index=False)

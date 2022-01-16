@@ -122,7 +122,7 @@ X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # Training and fit the best tree in the model
-classifier = RandomForestClassifier(n_estimators=100, class_weight="balanced_subsample")
+classifier = RandomForestClassifier(n_estimators=100, class_weight={1: 4, 0: 1})
 classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
@@ -131,4 +131,4 @@ result = pd.DataFrame([test_set_init["TEST_SET_ID"].to_numpy(), np.split(Y_pred,
                       index=["id", "prediction"]).T
 result["prediction"] = result["prediction"].map(np.sum)
 result = result.astype(int)
-result.to_csv("prediction_savvy_sea_lion_3.csv", index=False)
+result.to_csv("prediction_savvy_sea_lion_5.csv", index=False)
