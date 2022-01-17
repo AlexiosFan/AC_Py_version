@@ -6,14 +6,15 @@ with regards and thanks to the tutorial of usage of sklearning package posts
 # Loading packages and data
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, \
     StackingClassifier, HistGradientBoostingClassifier, RandomForestRegressor
 from sklearn.svm import SVC
 from sklearn.pipeline import make_pipeline
-from sklearn.linear_model import LogisticRegression
-from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import LogisticRegressionCV, LogisticRegression
+from sklearn.naive_bayes import ComplementNB
 from sklearn.model_selection import train_test_split, cross_validate
+from sklearn.model_selection import GridSearchCV
 
 # Set a fixed random seed to make the work reproducible
 np.random.seed(2022)
@@ -91,6 +92,7 @@ df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
 
+
 # Better to use unknown
 df["COUNTRY"] = df["COUNTRY"].fillna("UNKNOWN")
 df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
@@ -104,11 +106,11 @@ for letter in ["A", "B", "C", "D", "E"]:
 
 # One-hot encoding for nominal
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE",
-                                 "SALES_BRANCH", "PRICE_LIST", "SALES_OFFICE", "COUNTRY", "OWNERSHIP", "OFFER_TYPE"])
+                                 "SALES_BRANCH", "PRICE_LIST", "SALES_OFFICE", "COUNTRY", "OWNERSHIP", "OFFER_TYPE",
+                                 "SALES_LOCATION", "CURRENCY"])
 
 # Drop useless variables
-df = df.drop(columns=["MO_ID", "SO_ID", "CURRENCY", "CUSTOMER", "TEST_SET_ID",
-                      "SALES_LOCATION"])
+df = df.drop(columns=["MO_ID", "SO_ID", "CUSTOMER", "TEST_SET_ID"])
 
 # Modeling the data
 
@@ -119,19 +121,19 @@ X = df.drop(columns="OFFER_STATUS")
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=0)
 
 # the scaling matter, for good habits
-sc = StandardScaler()
+sc = MinMaxScaler()
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
-rf = RandomForestClassifier(n_estimators=100, class_weight={1: 1, 0: 4}, min_samples_split=0.008, min_samples_leaf=0.009)
-logit = LogisticRegression(max_iter=300, class_weight={1: 1, 0: 4}, solver="saga")
-gnb = GaussianNB()
+rf = RandomForestClassifier(n_estimators=200, class_weight={1: 1, 0: 4}, min_samples_split=0.001, min_samples_leaf=0.001)
+logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=1)
+nb = ComplementNB()
 hist = HistGradientBoostingClassifier()
 grad = GradientBoostingClassifier()
-voting = VotingClassifier(estimators=[('rf', rf), ('lr', logit), ('gnb', gnb), ('hist', hist)], voting='soft')
+voting = VotingClassifier(estimators=[('rf', rf), ('lr', logit), ('nb', nb)], voting='hard')
 
-classifier = rf
+classifier = nb
 classifier.fit(X_train, Y_train)
 
 # cross validation
@@ -141,15 +143,42 @@ classifier.fit(X_train, Y_train)
 Y_pred = classifier.predict(X_test)
 
 from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, \
-    balanced_accuracy_score
+    balanced_accuracy_score, accuracy_score
 
-# print(confusion_matrix(Y_test, Y_pred))
-# print(classification_report(Y_test, Y_pred))
+print(confusion_matrix(Y_test, Y_pred))
+print(classification_report(Y_test, Y_pred))
+
+
+
+#GridSearch for paras
+
 
 balance = balanced_accuracy_score(Y_test, Y_pred)
 recall = recall_score(Y_test, Y_pred)
 specificity = 2 * balance - recall
 
-print(balance)
-print(recall)
-print(specificity)
+print('accuracy: ' + str(accuracy_score(Y_test, Y_pred)))
+print('balanced accuracy: ' + str(balance))
+print('recall: ' + str(recall))
+print('specificity: ' + str(specificity))
+
+print(df['OFFER_STATUS'].count())
+print(df['OFFER_STATUS'].sum())
+
+"""classifiert = RandomForestClassifier(class_weight={1: 1, 0: 4})
+paras = {"n_estimators": [10, 20, 50, 100, 200], "min_samples_split": [0.01, 0.05, 0.1, 0.001],
+         "max_depth": [2, 4, None, 8, 16]}
+cv = GridSearchCV(classifiert, paras, cv=5)
+cv.fit(X_train, Y_train)
+def display(results):
+    print(f'Best parameters are: {results.best_params_}')
+    print("\n")
+    mean_score = results.cv_results_['mean_test_score']
+    std_score = results.cv_results_['std_test_score']
+    params = results.cv_results_['params']
+    for mean,std,params in zip(mean_score,std_score,params):
+        print(f'{round(mean,3)} + or -{round(std,3)} for the {params}')
+
+
+display(cv)
+"""
