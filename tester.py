@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier, VotingClassifier, \
-    StackingClassifier, HistGradientBoostingClassifier, RandomForestRegressor
+    StackingClassifier, HistGradientBoostingClassifier, RandomForestRegressor, ExtraTreesClassifier
 from sklearn.svm import SVC
 from sklearn.pipeline import make_pipeline
 from sklearn.linear_model import LogisticRegressionCV, LogisticRegression
@@ -18,6 +18,7 @@ from sklearn.model_selection import GridSearchCV
 
 # Set a fixed random seed to make the work reproducible
 np.random.seed(2022)
+
 
 # mapping functions
 # Converting string to nums
@@ -92,7 +93,6 @@ df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
 
-
 # Better to use unknown
 df["COUNTRY"] = df["COUNTRY"].fillna("UNKNOWN")
 df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
@@ -126,19 +126,21 @@ X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
-rf = RandomForestClassifier(n_estimators=200, class_weight={1: 1, 0: 4}, min_samples_split=0.001, min_samples_leaf=0.001)
+rf = RandomForestClassifier(n_estimators=200, class_weight={1: 1, 0: 4}, min_samples_split=0.001,
+                            min_samples_leaf=0.001)
 logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=1)
-nb = ComplementNB()
+et = ExtraTreesClassifier(n_estimators=100, class_weight='balanced_subsample')
+nb = ComplementNB(alpha=0.1)
 hist = HistGradientBoostingClassifier()
 grad = GradientBoostingClassifier()
-voting = VotingClassifier(estimators=[('rf', rf), ('lr', logit), ('nb', nb)], voting='hard')
+voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting='hard')
 
-classifier = nb
+classifier = voting
 classifier.fit(X_train, Y_train)
 
 # cross validation
-#cv_results = cross_validate(classifier, X, Y, cv=10, return_train_score=True)
-#print(cv_results['test_score'])
+# cv_results = cross_validate(classifier, X, Y, cv=10, return_train_score=True)
+# print(cv_results['test_score'])
 
 Y_pred = classifier.predict(X_test)
 
@@ -148,9 +150,7 @@ from sklearn.metrics import classification_report, confusion_matrix, precision_s
 print(confusion_matrix(Y_test, Y_pred))
 print(classification_report(Y_test, Y_pred))
 
-
-
-#GridSearch for paras
+# GridSearch for paras
 
 
 balance = balanced_accuracy_score(Y_test, Y_pred)
