@@ -121,15 +121,16 @@ X = df.drop(columns="OFFER_STATUS")
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=0)
 
 # the scaling matter, for good habits
-sc = MinMaxScaler()
+sc = MinMaxScaler(feature_range=(0, 100))
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
 rf = RandomForestClassifier(n_estimators=200, class_weight={1: 1, 0: 4}, min_samples_split=0.001,
-                            min_samples_leaf=0.001)
-logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=1)
-et = ExtraTreesClassifier(n_estimators=100, class_weight='balanced_subsample')
+                            min_samples_leaf=0.0005)
+logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4}, solver="saga", C=0.01)
+et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 4}, min_samples_split=0.001,
+                          min_samples_leaf=0.0005)
 nb = ComplementNB(alpha=0.1)
 hist = HistGradientBoostingClassifier()
 grad = GradientBoostingClassifier()
