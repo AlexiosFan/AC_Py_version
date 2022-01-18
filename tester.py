@@ -37,12 +37,12 @@ def remove_NV(entry):
 #
 # Process the end_customers
 def map_end_customer(entry):
-    if entry in ["No", np.nan]:
+    if entry in ["No"]:
         return 0
-    elif entry in ["Yes"]:
+    elif entry in ["Yes", np.nan]:
         return 1
     else:
-        return 1
+        return 0
 
 
 # read files
@@ -79,8 +79,11 @@ df["ISIC"] = df["ISIC"].ffill().bfill()
 # Dealing with the dates
 df["CREATION_YEAR"] = pd.to_datetime(df["CREATION_YEAR"]).dt.year
 # TODO: DATE MATTER
-df["MO_CREATED_DATE"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.month
-df["SO_CREATED_DATE"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
+df["MO_CREATED_YEAR"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.year
+df["MO_CREATED_MONTH"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.month
+df["SO_CREATED_YEAR"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.year
+df["SO_CREATED_MONTH"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
+
 
 df["CREATION_YEAR"] = df["CREATION_YEAR"].ffill().bfill()
 
@@ -136,7 +139,7 @@ hist = HistGradientBoostingClassifier()
 grad = GradientBoostingClassifier()
 voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting='hard')
 
-classifier = voting
+classifier = rf
 classifier.fit(X_train, Y_train)
 
 # cross validation
