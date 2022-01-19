@@ -44,6 +44,12 @@ def map_end_customer(entry):
     else:
         return 0
 
+def map_high_marginal(entry):
+    if entry == 0:
+        return 0
+    else:
+        return 1
+
 
 # read files
 transactions = pd.read_csv("transactions.csv")
@@ -73,9 +79,6 @@ df = df.merge(customers, how="left", on=["CUSTOMER", "COUNTRY"])
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["LOST", "Lost", "LOsT", "Lose"], 0.)
 df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.)
 
-# df = df[df["CUSTOMER"].notna()]  # using this line will make the result set wrong
-df["ISIC"] = df["ISIC"].ffill().bfill()
-
 # Dealing with the dates
 df["CREATION_YEAR"] = pd.to_datetime(df["CREATION_YEAR"]).dt.year
 # TODO: DATE MATTER
@@ -89,7 +92,7 @@ df["SO_CREATED_MONTH"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
 #df["SO_CREATED_DATE"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.dayofweek
 
 
-df["CREATION_YEAR"] = df["CREATION_YEAR"].fillna(df["CREATION_YEAR"].mean())
+df["CREATION_YEAR"] = df["CREATION_YEAR"].fillna(2002)
 
 # Uniting currency with cny
 df["CURRENCY"] = df["CURRENCY"].map({"Chinese Yuan": 1, "Euro": 7.2, "US Dollar": 6.4, "Pound Sterling": 8.6, 0: 0})
@@ -107,9 +110,10 @@ df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
 df["END_CUSTOMER"] = df["END_CUSTOMER"].map(map_end_customer)
 
 # Turning high/low margin products to percentage and make them comparable(effective)
+"""
 for letter in ["A", "B", "C", "D", "E"]:
-    df["Percentage_of_Product_" + letter] = df["COSTS_PRODUCT_" + letter] / (df["SERVICE_COST"]+df["MATERIAL_COST"])
-    df = df.drop(columns=["COSTS_PRODUCT_" + letter])
+    df["COSTS_PRODUCT_" + letter] = df["COSTS_PRODUCT_" + letter].map(map_high_marginal)
+"""
 
 # One-hot encoding for nominal
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE",
@@ -126,23 +130,22 @@ df = df.drop(columns=["MO_ID", "SO_ID", "CUSTOMER", "TEST_SET_ID", "MO_CREATED_D
 df = df[df["OFFER_STATUS"].notna()]
 Y = df["OFFER_STATUS"]
 X = df.drop(columns="OFFER_STATUS")
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=0)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=2022)
 
 # the scaling matter, for good habits
-sc = MinMaxScaler(feature_range=(0, 100))
+sc = MinMaxScaler(feature_range=(0, 50))
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
 rf = RandomForestClassifier(n_estimators=200, class_weight={1: 1, 0: 6}, min_samples_split=0.001,
-                            min_samples_leaf=0.0005)
-logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01)
-et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 5}, min_samples_split=0.001,
-                          min_samples_leaf=0.0005)
+                            min_samples_leaf=0.0005, random_state=2022)
+logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01, random_state=2022)
+et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 1}, random_state=2022)
 nb = ComplementNB()
 hist = HistGradientBoostingClassifier()
 grad = GradientBoostingClassifier()
-voting = VotingClassifier(estimators=[('rf', rf), ('lr', logit), ('et', et)], voting="hard")
+voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting="hard")
 
 classifier = voting
 classifier.fit(X_train, Y_train)
