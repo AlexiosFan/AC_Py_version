@@ -16,8 +16,9 @@ from sklearn.naive_bayes import ComplementNB
 from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.model_selection import GridSearchCV
 
+random_state = 2022
 # Set a fixed random seed to make the work reproducible
-np.random.seed(2022)
+np.random.seed(random_state)
 
 
 # mapping functions
@@ -43,12 +44,6 @@ def map_end_customer(entry):
         return 1
     else:
         return 0
-
-def map_high_marginal(entry):
-    if entry == 0:
-        return 0
-    else:
-        return 1
 
 
 # read files
@@ -81,18 +76,15 @@ df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.
 
 # Dealing with the dates
 df["CREATION_YEAR"] = pd.to_datetime(df["CREATION_YEAR"]).dt.year
+df["CREATION_YEAR"] = df["CREATION_YEAR"].fillna(df["CREATION_YEAR"].mean())
 # TODO: DATE MATTER
 
 df["MO_CREATED_YEAR"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.year
 df["MO_CREATED_MONTH"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.month
-#df["MO_CREATED_DATE"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.dayofweek
 
 df["SO_CREATED_YEAR"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.year
 df["SO_CREATED_MONTH"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
-#df["SO_CREATED_DATE"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.dayofweek
 
-
-df["CREATION_YEAR"] = df["CREATION_YEAR"].fillna(2002)
 
 # Uniting currency with cny
 df["CURRENCY"] = df["CURRENCY"].map({"Chinese Yuan": 1, "Euro": 7.2, "US Dollar": 6.4, "Pound Sterling": 8.6, 0: 0})
@@ -103,17 +95,14 @@ df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
 
+df["REVENUE"] = (df["OFFER_PRICE"]-df["SERVICE_LIST_PRICE"]-df["MATERIAL_COST"]-df["SERVICE_COST"])/df["OFFER_PRICE"]
+
 # Better to use unknown
 df["COUNTRY"] = df["COUNTRY"].fillna("UNKNOWN")
 df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
 
 df["END_CUSTOMER"] = df["END_CUSTOMER"].map(map_end_customer)
 
-# Turning high/low margin products to percentage and make them comparable(effective)
-"""
-for letter in ["A", "B", "C", "D", "E"]:
-    df["COSTS_PRODUCT_" + letter] = df["COSTS_PRODUCT_" + letter].map(map_high_marginal)
-"""
 
 # One-hot encoding for nominal
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE",
@@ -130,21 +119,19 @@ df = df.drop(columns=["MO_ID", "SO_ID", "CUSTOMER", "TEST_SET_ID", "MO_CREATED_D
 df = df[df["OFFER_STATUS"].notna()]
 Y = df["OFFER_STATUS"]
 X = df.drop(columns="OFFER_STATUS")
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=2022)
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=random_state)
 
 # the scaling matter, for good habits
-sc = MinMaxScaler(feature_range=(0, 50))
+sc = MinMaxScaler(feature_range=(0, 100))
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
 rf = RandomForestClassifier(n_estimators=200, class_weight={1: 1, 0: 6}, min_samples_split=0.001,
-                            min_samples_leaf=0.0005, random_state=2022)
-logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01, random_state=2022)
-et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 1}, random_state=2022)
-nb = ComplementNB()
-hist = HistGradientBoostingClassifier()
-grad = GradientBoostingClassifier()
+                            min_samples_leaf=0.0005, random_state=random_state)
+logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01)
+et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 1}, random_state=random_state)
+
 voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting="hard")
 
 classifier = voting
@@ -195,4 +182,3 @@ def display(results):
 
 display(cv)
 """
-
