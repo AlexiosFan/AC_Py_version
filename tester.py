@@ -15,7 +15,8 @@ from sklearn.linear_model import LogisticRegressionCV, LogisticRegression
 from sklearn.naive_bayes import ComplementNB
 from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.model_selection import GridSearchCV
-
+from sklearn.preprocessing import LabelEncoder
+from imblearn.ensemble import BalancedRandomForestClassifier
 random_state = 2022
 # Set a fixed random seed to make the work reproducible
 np.random.seed(random_state)
@@ -102,16 +103,27 @@ df["COUNTRY"] = df["COUNTRY"].fillna("UNKNOWN")
 df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
 
 df["END_CUSTOMER"] = df["END_CUSTOMER"].map(map_end_customer)
+df["ISIC"] = df["ISIC"].fillna(0)/100
 
 
-# One-hot encoding for nominal
+
+# One-hot encoding is bad in random forest, alternatively label encoding is better
+
+label_encoder = LabelEncoder()
+for feature in ["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE", "SALES_BRANCH",
+                "SALES_LOCATION"]:
+    df[feature] = label_encoder.fit_transform(df[feature])
+"""
+
 df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE",
-                                 "PRICE_LIST", "COUNTRY", "OWNERSHIP", "OFFER_TYPE",
-                                 "SALES_BRANCH", "CURRENCY", "SALES_LOCATION"])
+                                 "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE",
+                                 "SALES_BRANCH", "SALES_LOCATION"])
+"""
+
 
 # Drop useless variables
-df = df.drop(columns=["MO_ID", "SO_ID", "CUSTOMER", "TEST_SET_ID", "MO_CREATED_DATE", "SO_CREATED_DATE",
-                      "ISIC", "SALES_OFFICE"])
+df = df.drop(columns=["MO_ID", "SO_ID", "CUSTOMER", "TEST_SET_ID", "MO_CREATED_DATE", "SO_CREATED_DATE", "END_CUSTOMER",
+                      "COUNTRY", "SALES_OFFICE"])
 
 # Modeling the data
 
@@ -122,19 +134,19 @@ X = df.drop(columns="OFFER_STATUS")
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=random_state)
 
 # the scaling matter, for good habits
-sc = MinMaxScaler(feature_range=(0, 100))
+sc = StandardScaler()
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
 
 # training and fit the best tree in the model
-rf = RandomForestClassifier(n_estimators=200, class_weight={1: 1, 0: 6}, min_samples_split=0.001,
-                            min_samples_leaf=0.0005, random_state=random_state)
+rf = BalancedRandomForestClassifier(n_estimators=200, class_weight="balanced_subsample", random_state=random_state,
+                                    sampling_strategy="all", criterion='entropy')
 logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01)
 et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 1}, random_state=random_state)
 
 voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting="hard")
 
-classifier = voting
+classifier = rf
 classifier.fit(X_train, Y_train)
 
 # cross validation
