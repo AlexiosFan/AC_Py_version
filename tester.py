@@ -16,6 +16,9 @@ from sklearn.model_selection import train_test_split, cross_validate
 from sklearn.model_selection import GridSearchCV
 from sklearn.preprocessing import LabelEncoder
 from imblearn.ensemble import BalancedRandomForestClassifier
+from sklearn.impute import SimpleImputer
+from sklearn.impute import KNNImputer
+
 
 random_state = 2022
 # Set a fixed random seed to make the work reproducible
@@ -46,67 +49,6 @@ def map_end_customer(entry):
     else:
         return 0
 
-
-# read files
-transactions = pd.read_csv("transactions.csv")
-customers = pd.read_csv("customers.csv")
-geo = pd.read_csv("geo.csv")
-
-# Join transactions with geo, customers
-# We use the left outer join to ensure there is no data loss in transactions
-df = transactions.merge(geo, how="left")
-
-# The data type of attribute "CUSTOMER" in data transactions is String
-# We need to firstly convert the data type into int
-df["CUSTOMER"] = df["CUSTOMER"].map(remove_quote, 'ignore').map(remove_NV).astype(int, errors="ignore")
-
-# The data type of "REV_CURRENT_YEAR" is string
-# We need to convert the data type into float
-customers["REV_CURRENT_YEAR"] = customers["REV_CURRENT_YEAR"].map(remove_quote).astype(float, errors="ignore")
-
-# The format of attribute "COUNTRY" is different in data customers and transactions
-# We need to firstly convert them to the same format
-df["COUNTRY"] = df["COUNTRY"].map({"CH": "Switzerland", "FR": "France"})
-df = df.merge(customers, how="left", on=["CUSTOMER", "COUNTRY"])
-
-# Exploratory Analysis and Preprocessing
-
-# data preparation for OFFER_STATUS
-df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["LOST", "Lost", "LOsT", "Lose"], 0.)
-df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.)
-
-# Dealing with the dates
-df["CREATION_YEAR"] = pd.to_datetime(df["CREATION_YEAR"]).dt.year
-df["CREATION_YEAR"] = df["CREATION_YEAR"].fillna(df["CREATION_YEAR"].mean())
-# TODO: DATE MATTER
-
-df["MO_CREATED_YEAR"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.year
-df["MO_CREATED_MONTH"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.month
-
-df["SO_CREATED_YEAR"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.year
-df["SO_CREATED_MONTH"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
-
-
-# Uniting currency with cny
-df["CURRENCY"] = df["CURRENCY"].map({"Chinese Yuan": 1, "Euro": 7.2, "US Dollar": 6.4, "Pound Sterling": 8.6, 0: 0})
-for col in ["CURRENCY", "REV_CURRENT_YEAR", "REV_CURRENT_YEAR.1", "REV_CURRENT_YEAR.2"]:
-    df[col] = df[col].fillna(df[col].mean())
-
-df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
-df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
-df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
-
-df["REVENUE"] = (df["OFFER_PRICE"]-df["SERVICE_LIST_PRICE"]-df["MATERIAL_COST"]-df["SERVICE_COST"])/df["OFFER_PRICE"]
-#df["BARGAIN"] = (df["OFFER_PRICE"]-df["SERVICE_LIST_PRICE"])/df["OFFER_PRICE"]
-
-# Better to use unknown
-df["COUNTRY"] = df["COUNTRY"].fillna("UNKNOWN")
-df["OWNERSHIP"] = df["OWNERSHIP"].fillna("UNKNOWN")
-
-df["END_CUSTOMER"] = df["END_CUSTOMER"].map(map_end_customer)
-df["ISIC"] = (df["ISIC"].fillna(0)/100)
-
-"""
 def map_isic(entry):
     if entry in range(1, 4):
         return 'A'
@@ -151,26 +93,94 @@ def map_isic(entry):
     elif entry == 99:
         return 'U'
     else:
-        return "OMEGA"
-"""
+        return np.nan
+
+
+# read files
+transactions = pd.read_csv("transactions.csv")
+customers = pd.read_csv("customers.csv")
+geo = pd.read_csv("geo.csv")
+
+# Join transactions with geo, customers
+# We use the left outer join to ensure there is no data loss in transactions
+df = transactions.merge(geo, how="left")
+
+# The data type of attribute "CUSTOMER" in data transactions is String
+# We need to firstly convert the data type into int
+df["CUSTOMER"] = df["CUSTOMER"].map(remove_quote, 'ignore').map(remove_NV).astype(int, errors="ignore")
+
+# The data type of "REV_CURRENT_YEAR" is string
+# We need to convert the data type into float
+customers["REV_CURRENT_YEAR"] = customers["REV_CURRENT_YEAR"].map(remove_quote).astype(float, errors="ignore")
+
+# The format of attribute "COUNTRY" is different in data customers and transactions
+# We need to firstly convert them to the same format
+df["COUNTRY"] = df["COUNTRY"].map({"CH": "Switzerland", "FR": "France"})
+df = df.merge(customers, how="left", on=["CUSTOMER", "COUNTRY"])
+
+# Exploratory Analysis and Preprocessing
+
+# data preparation for OFFER_STATUS
+df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["LOST", "Lost", "LOsT", "Lose"], 0.)
+df["OFFER_STATUS"] = df["OFFER_STATUS"].replace(["WIN", "Win", "Won", "WON"], 1.)
+
+# Dealing with the dates
+df["CREATION_YEAR"] = pd.to_datetime(df["CREATION_YEAR"]).dt.year
+
+df["MO_CREATED_YEAR"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.year
+df["MO_CREATED_MONTH"] = pd.to_datetime(df["MO_CREATED_DATE"]).dt.month
+
+df["SO_CREATED_YEAR"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.year
+df["SO_CREATED_MONTH"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
+
+
+# Uniting currency with cny
+df["CURRENCY"] = df["CURRENCY"].map({"Chinese Yuan": 1, "Euro": 7.2, "US Dollar": 6.4, "Pound Sterling": 8.6, 0: 0})
+
+knn = KNNImputer()
+revs = knn.fit_transform(df.get(["CURRENCY", "REV_CURRENT_YEAR", "REV_CURRENT_YEAR.1", "REV_CURRENT_YEAR.2", "CREATION_YEAR"]))
+revs = pd.DataFrame(revs)
+df["CURRENCY"] = revs[0]
+df["REV_CURRENT_YEAR"] = revs[1]
+df["REV_CURRENT_YEAR.1"] = revs[2]
+df["REV_CURRENT_YEAR.2"] = revs[3]
+df["CREATION_YEAR"] = revs[4]
+
+df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
+df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
+df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
+
+#df["REVENUE"] = (df["OFFER_PRICE"]-df["SERVICE_LIST_PRICE"]-df["MATERIAL_COST"]-df["SERVICE_COST"])/df["OFFER_PRICE"]
+#df["BARGAIN"] = (df["OFFER_PRICE"]-df["SERVICE_LIST_PRICE"])/df["OFFER_PRICE"]
+
+df["END_CUSTOMER"] = df["END_CUSTOMER"].map(map_end_customer)
+
+for entry in ['A', 'B', 'C', 'D', 'E']:
+    df["Percentage_cost_"+entry] = df["COSTS_PRODUCT_"+entry]/df["MATERIAL_COST"]
+    df["Percentage_cost_"+entry] = df["Percentage_cost_"+entry].fillna(0).replace(np.inf, 0)
+    df = df.drop(columns=["COSTS_PRODUCT_"+entry])
+
+df["ISIC"] = (df["ISIC"].fillna(0)/100).map(map_isic)
+
+imputer = SimpleImputer(strategy="most_frequent")
+subres = imputer.fit_transform(df.get(["COUNTRY", "OWNERSHIP", "ISIC"]))
+subres = pd.DataFrame(subres)
+df["COUNTRY"] = subres[0]
+df["OWNERSHIP"] = subres[1]
+
 
 # One-hot encoding is bad in random forest, alternatively label encoding is better
 
 label_encoder = LabelEncoder()
 for feature in ["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE", "SALES_BRANCH",
-                "SALES_LOCATION", "CURRENCY"]:
+                "SALES_LOCATION", "CURRENCY", "ISIC", "COUNTRY"]:
     df[feature] = label_encoder.fit_transform(df[feature])
-"""
-
-df = pd.get_dummies(df, columns=["TECH", "BUSINESS_TYPE",
-                                 "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE",
-                                 "SALES_BRANCH", "SALES_LOCATION"])
-"""
-
 
 # Drop useless variables
 df = df.drop(columns=["MO_ID", "SO_ID", "CUSTOMER", "TEST_SET_ID", "MO_CREATED_DATE", "SO_CREATED_DATE", "END_CUSTOMER",
-                      "COUNTRY", "SALES_OFFICE"])
+                      "SALES_OFFICE"])
+
+
 
 # Modeling the data
 
@@ -181,12 +191,13 @@ X = df.drop(columns="OFFER_STATUS")
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=random_state)
 
 # the scaling matter, for good habits
-sc = MinMaxScaler()
+"""
+sc = StandardScaler()
 X_train = sc.fit_transform(X_train)
 X_test = sc.transform(X_test)
-
+"""
 # training and fit the best tree in the model
-rf = BalancedRandomForestClassifier(n_estimators=128, class_weight="balanced_subsample", sampling_strategy="all",
+rf = BalancedRandomForestClassifier(n_estimators=100, class_weight="balanced_subsample", sampling_strategy="all",
                                     criterion='entropy', random_state=random_state)
 logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01)
 et = ExtraTreesClassifier(n_estimators=200, class_weight="balanced_subsample", random_state=random_state)
@@ -195,9 +206,10 @@ voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting="hard")
 
 classifier = rf
 classifier.fit(X_train, Y_train)
+
 # cross validation
-# cv_results = cross_validate(classifier, X, Y, cv=10, return_train_score=True)
-# print(cv_results['test_score'])
+#cv_results = cross_validate(classifier, X, Y, cv=3, scoring="balanced_accuracy")
+#print(cv_results['test_score'])
 
 Y_pred = classifier.predict(X_test)
 
