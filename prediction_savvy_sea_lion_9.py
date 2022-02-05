@@ -138,6 +138,7 @@ df["SO_CREATED_MONTH"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
 # Uniting currency with cny
 df["CURRENCY"] = df["CURRENCY"].map({"Chinese Yuan": 1, "Euro": 7.2, "US Dollar": 6.4, "Pound Sterling": 8.6, 0: 0})
 
+# use the imputer to fill the nans meaningfully
 knn = KNNImputer()
 revs = knn.fit_transform(df.get(["CURRENCY", "REV_CURRENT_YEAR", "REV_CURRENT_YEAR.1", "REV_CURRENT_YEAR.2",
                                  "CREATION_YEAR"]))
@@ -153,18 +154,18 @@ df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.2"] = df["REV_CURRENT_YEAR.2"] * df["CURRENCY"]
 
-#df["REVENUE"] = (df["OFFER_PRICE"]-df["SERVICE_LIST_PRICE"]-df["MATERIAL_COST"]-df["SERVICE_COST"])/df["OFFER_PRICE"]
-#df["BARGAIN"] = (df["OFFER_PRICE"]-df["SERVICE_LIST_PRICE"])/df["OFFER_PRICE"]
-
 df["END_CUSTOMER"] = df["END_CUSTOMER"].map(map_end_customer)
 
+# mapping the prices to the percentages
 for entry in ['A', 'B', 'C', 'D', 'E']:
     df["Percentage_cost_"+entry] = df["COSTS_PRODUCT_"+entry]/df["MATERIAL_COST"]
     df["Percentage_cost_"+entry] = df["Percentage_cost_"+entry].fillna(0).replace(np.inf, 0)
     df = df.drop(columns=["COSTS_PRODUCT_"+entry])
 
+# mapping isics according to the manual and defs
 df["ISIC"] = (df["ISIC"].fillna(0)/100).map(map_isic)
 
+# categorical imputer for strs to fill nas with the most frequent
 imputer = SimpleImputer(strategy="most_frequent")
 subres = imputer.fit_transform(df.get(["COUNTRY", "OWNERSHIP", "ISIC"]))
 subres = pd.DataFrame(subres)
@@ -180,73 +181,38 @@ for feature in ["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE"
     df[feature] = label_encoder.fit_transform(df[feature])
 
 # Drop useless variables
-df = df.drop(columns=["MO_ID", "SO_ID", "TEST_SET_ID", "MO_CREATED_DATE", "SO_CREATED_DATE", "SALES_OFFICE",
+df = df.drop(columns=["MO_ID", "SO_ID", "MO_CREATED_DATE", "SO_CREATED_DATE", "SALES_OFFICE",
                       "END_CUSTOMER", "CUSTOMER"])
 
-# Modeling the data
+# Modeling the data, drop the scalers for they might result in worse predictions and are not necessary
 
-# dividing the outcomes and variables
+# separate the training set and the test set
+train_set = df[df["OFFER_STATUS"].notna()].drop(columns="TEST_SET_ID")
+test_set_init = df[df["OFFER_STATUS"].isna()]  # used to generate the outcome
 
-df = df[df["OFFER_STATUS"].notna()]
-Y = df["OFFER_STATUS"]
-X = df.drop(columns="OFFER_STATUS")
-# reducing dimensions using PCA
-#pca = PCA(n_components=15)
-#X = pca.fit_transform(X)
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=random_state)
+test_set = test_set_init.drop(columns="TEST_SET_ID")
 
-# training and fit the best tree in the model
+# Dividing the variables and outcomes
+Y_train = train_set["OFFER_STATUS"].values
+X_train = train_set.drop(columns="OFFER_STATUS").values
+
+X_test = test_set.drop(columns="OFFER_STATUS").values
+
+# using balanced rf and extra trees to improve the model
 rf = BalancedRandomForestClassifier(n_estimators=200, class_weight="balanced_subsample", sampling_strategy="all",
                                     criterion='entropy', random_state=random_state, max_features=2)
-logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01)
-et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 4}, random_state=random_state)
+et = ExtraTreesClassifier(n_estimators=200, class_weight="balanced_subsample", random_state=random_state)
 
 voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting="hard")
-classifier = et
+classifier = voting
 classifier.fit(X_train, Y_train)
-
-# cross validation
-cv_results = cross_validate(classifier, X, Y, cv=9, scoring="balanced_accuracy")
-print(cv_results['test_score'])
 
 Y_pred = classifier.predict(X_test)
 
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, \
-    balanced_accuracy_score, accuracy_score
+# Output the results
+result = pd.DataFrame([test_set_init["TEST_SET_ID"].to_numpy(), np.split(Y_pred, len(Y_pred))],
+                      index=["id", "prediction"]).T
+result["prediction"] = result["prediction"].map(np.sum)
+result = result.astype(int)
+result.to_csv("prediction_savvy_sea_lion_9.csv", index=False)
 
-print(confusion_matrix(Y_test, Y_pred))
-print(classification_report(Y_test, Y_pred))
-
-# GridSearch for paras
-
-
-balance = balanced_accuracy_score(Y_test, Y_pred)
-recall = recall_score(Y_test, Y_pred)
-specificity = 2 * balance - recall
-
-print('accuracy: ' + str(accuracy_score(Y_test, Y_pred)))
-print('balanced accuracy: ' + str(balance))
-print('recall: ' + str(recall))
-print('specificity: ' + str(specificity))
-
-print(df['OFFER_STATUS'].count())
-print(df['OFFER_STATUS'].sum())
-
-"""
-classifiert = RandomForestClassifier(class_weight={1: 1, 0: 4})
-paras = {"n_estimators": [100, 200], "min_samples_split": [0.002, 0.001, 0.004],
-         "min_samples_leaf": [0.001, 0.0005, 0.002, 0.001]}
-cv = GridSearchCV(classifiert, paras, cv=3)
-cv.fit(X_train, Y_train)
-def display(results):
-    print(f'Best parameters are: {results.best_params_}')
-    print("\n")
-    mean_score = results.cv_results_['mean_test_score']
-    std_score = results.cv_results_['std_test_score']
-    params = results.cv_results_['params']
-    for mean,std,params in zip(mean_score,std_score,params):
-        print(f'{round(mean,3)} + or -{round(std,3)} for the {params}')
-
-
-display(cv)
-"""

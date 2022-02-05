@@ -139,15 +139,13 @@ df["SO_CREATED_MONTH"] = pd.to_datetime(df["SO_CREATED_DATE"]).dt.month
 df["CURRENCY"] = df["CURRENCY"].map({"Chinese Yuan": 1, "Euro": 7.2, "US Dollar": 6.4, "Pound Sterling": 8.6, 0: 0})
 
 knn = KNNImputer()
-revs = knn.fit_transform(df.get(["CURRENCY", "REV_CURRENT_YEAR", "REV_CURRENT_YEAR.1", "REV_CURRENT_YEAR.2",
-                                 "CREATION_YEAR"]))
+revs = knn.fit_transform(df.get(["CURRENCY", "REV_CURRENT_YEAR", "REV_CURRENT_YEAR.1", "REV_CURRENT_YEAR.2", "CREATION_YEAR"]))
 revs = pd.DataFrame(revs)
 df["CURRENCY"] = revs[0]
 df["REV_CURRENT_YEAR"] = revs[1]
 df["REV_CURRENT_YEAR.1"] = revs[2]
 df["REV_CURRENT_YEAR.2"] = revs[3]
 df["CREATION_YEAR"] = revs[4]
-
 
 df["REV_CURRENT_YEAR"] = df["REV_CURRENT_YEAR"] * df["CURRENCY"]
 df["REV_CURRENT_YEAR.1"] = df["REV_CURRENT_YEAR.1"] * df["CURRENCY"]
@@ -180,8 +178,9 @@ for feature in ["TECH", "BUSINESS_TYPE", "PRICE_LIST", "OWNERSHIP", "OFFER_TYPE"
     df[feature] = label_encoder.fit_transform(df[feature])
 
 # Drop useless variables
-df = df.drop(columns=["MO_ID", "SO_ID", "TEST_SET_ID", "MO_CREATED_DATE", "SO_CREATED_DATE", "SALES_OFFICE",
-                      "END_CUSTOMER", "CUSTOMER"])
+df = df.drop(columns=["MO_ID", "SO_ID", "CUSTOMER", "TEST_SET_ID", "MO_CREATED_DATE", "SO_CREATED_DATE", "SALES_OFFICE",
+                      "END_CUSTOMER"])
+
 
 # Modeling the data
 
@@ -195,48 +194,18 @@ X = df.drop(columns="OFFER_STATUS")
 #X = pca.fit_transform(X)
 X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.1, random_state=random_state)
 
-# training and fit the best tree in the model
-rf = BalancedRandomForestClassifier(n_estimators=200, class_weight="balanced_subsample", sampling_strategy="all",
-                                    criterion='entropy', random_state=random_state, max_features=2)
-logit = LogisticRegression(max_iter=2000, class_weight={1: 1, 0: 4.5}, solver="saga", C=0.01)
-et = ExtraTreesClassifier(n_estimators=200, class_weight={1: 1, 0: 4}, random_state=random_state)
-
-voting = VotingClassifier(estimators=[('rf', rf), ('et', et)], voting="hard")
-classifier = et
-classifier.fit(X_train, Y_train)
-
-# cross validation
-cv_results = cross_validate(classifier, X, Y, cv=9, scoring="balanced_accuracy")
-print(cv_results['test_score'])
-
-Y_pred = classifier.predict(X_test)
-
-from sklearn.metrics import classification_report, confusion_matrix, precision_score, recall_score, \
-    balanced_accuracy_score, accuracy_score
-
-print(confusion_matrix(Y_test, Y_pred))
-print(classification_report(Y_test, Y_pred))
-
-# GridSearch for paras
-
-
-balance = balanced_accuracy_score(Y_test, Y_pred)
-recall = recall_score(Y_test, Y_pred)
-specificity = 2 * balance - recall
-
-print('accuracy: ' + str(accuracy_score(Y_test, Y_pred)))
-print('balanced accuracy: ' + str(balance))
-print('recall: ' + str(recall))
-print('specificity: ' + str(specificity))
-
-print(df['OFFER_STATUS'].count())
-print(df['OFFER_STATUS'].sum())
-
+# the scaling matter, for good habits
 """
-classifiert = RandomForestClassifier(class_weight={1: 1, 0: 4})
-paras = {"n_estimators": [100, 200], "min_samples_split": [0.002, 0.001, 0.004],
-         "min_samples_leaf": [0.001, 0.0005, 0.002, 0.001]}
-cv = GridSearchCV(classifiert, paras, cv=3)
+sc = MinMaxScaler(feature_range=(0, 1000))
+X_train = sc.fit_transform(X_train)
+X_test = sc.transform(X_test)
+"""
+# training and fit the best tree in the model
+rf = BalancedRandomForestClassifier(n_estimators=100, class_weight="balanced_subsample", sampling_strategy="all",
+                                    criterion='entropy', random_state=random_state, ccp_alpha=0.005)
+
+paras = {"max_features": ["sqrt", 'log2', 20, 15]}
+cv = GridSearchCV(rf, paras, scoring='balanced_accuracy')
 cv.fit(X_train, Y_train)
 def display(results):
     print(f'Best parameters are: {results.best_params_}')
@@ -247,6 +216,5 @@ def display(results):
     for mean,std,params in zip(mean_score,std_score,params):
         print(f'{round(mean,3)} + or -{round(std,3)} for the {params}')
 
-
 display(cv)
-"""
+
